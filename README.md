@@ -105,17 +105,9 @@ float32 gripper
 
 ### 4.2 获取源代码
 
-1.  **创建工作空间:** (如果还没有)
+1.  **克隆源代码:** 
     ```bash
-    mkdir -p ~/Alicia_duo_leader_ros2/src
-    cd ~/Alicia_duo_leader_ros2/src
-    ```
-2.  **克隆或复制源代码:** 将 `alicia_duo_driver` 包放入 `src` 目录下。
-    ```bash
-    # 示例：假设源代码在另一个地方
-    # cp -r /path/to/your/alicia_duo_driver_package ./
-    # 或者使用 git clone
-    # git clone <your-repo-url>
+    git clone https://github.com/Xianova-Robotics/Alicia_duo_ros2.git
     ```
 
 ### 4.3 编译工作空间
