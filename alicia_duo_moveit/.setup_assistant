@@ -1,0 +1,25 @@
+moveit_setup_assistant_config:
+  urdf:
+    package: alicia_duo_descriptions
+    relative_path: urdf/alicia_duo_with_gripper_original.urdf
+  srdf:
+    relative_path: config/alicia_duo_descriptions.srdf
+  package_settings:
+    author_name: d
+    author_email: d@qq.com
+    generated_timestamp: 1747147699
+  control_xacro:
+    command:
+      - position
+    state:
+      - position
+      - velocity
+  modified_urdf:
+    xacros:
+      - control_xacro
+  control_xacro:
+    command:
+      - position
+    state:
+      - position
+      - velocity
