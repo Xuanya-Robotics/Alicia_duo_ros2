@@ -6,7 +6,7 @@
   <description>
      An automatically generated package with all the configuration and launch files for using the alicia_duo_descriptions with the MoveIt Motion Planning Framework
   </description>
-  <maintainer email="d@qq.com">d</maintainer>
+  <maintainer email="alicia@qq.com">alicia</maintainer>
 
   <license>BSD</license>
 
@@ -14,7 +14,7 @@
   <url type="bugtracker">https://github.com/ros-planning/moveit2/issues</url>
   <url type="repository">https://github.com/ros-planning/moveit2</url>
 
-  <author email="d@qq.com">d</author>
+  <author email="alicia@qq.com">alicia</author>
 
   <buildtool_depend>ament_cmake</buildtool_depend>
 

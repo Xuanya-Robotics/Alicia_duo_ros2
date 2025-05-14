@@ -4,9 +4,9 @@ moveit_controller_manager: moveit_simple_controller_manager/MoveItSimpleControll
 
 moveit_simple_controller_manager:
   controller_names:
-    - manipulator_controller
+    - alicia_controller
 
-  manipulator_controller:
+  alicia_controller:
     type: FollowJointTrajectory
     joints:
       - Joint1

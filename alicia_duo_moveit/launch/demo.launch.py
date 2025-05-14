@@ -122,7 +122,7 @@ def launch_setup(context, *args, **kwargs):
     arm_controller_spawner = Node(
         package="controller_manager",
         executable="spawner",
-        arguments=["manipulator_controller", "-c", "/controller_manager"],
+        arguments=["alicia_controller", "-c", "/controller_manager"],
     )
 
 
