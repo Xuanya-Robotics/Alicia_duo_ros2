@@ -100,7 +100,6 @@ private:
     double gripper_angle_ = 0.0;          // Gripper position from feedback
     
     // These are for the hardware interface
-    // std::vector<double> joint_velocity_;
     std::vector<double> joint_position_command_;
     double gripper_position_command_ = 0.0;
 

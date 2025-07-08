@@ -41,7 +41,6 @@ int main(int argc, char** argv)
     rclcpp::Rate rate(10);  // 10 Hz
     std::vector<double> zero_commands(7, 0.0);
     while (rclcpp::ok()) {
-        // Call the read method to process callbacks and update joint_position_
         hw->read(rclcpp::Clock().now(), rclcpp::Duration::from_seconds(0.1));
 
         // Now read the updated positions
