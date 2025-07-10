@@ -23,7 +23,8 @@ public:
     explicit SerialCommunicator(
         std::string port_name = "/dev/ttyUSB0",
         uint32_t baud_rate = 921600,
-        bool debug_mode = false);
+        bool debug_mode = false,
+        rclcpp::Logger logger = rclcpp::get_logger("SerialCommunicator"));
 
     ~SerialCommunicator();
 
@@ -56,6 +57,7 @@ private:
     std::atomic<bool> is_running_;
     std::mutex queue_mutex_;
     std::deque<std::vector<uint8_t>> received_packets_queue_;
+    rclcpp::Logger logger_; // Logger for debug messages
 };
 
 #endif // SERIAL_COMMUNICATOR_HPP

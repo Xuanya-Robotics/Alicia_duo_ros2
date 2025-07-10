@@ -19,6 +19,7 @@
 // Add serial driver includes
 #include "serial_driver/serial_driver.hpp"
 #include "serial_driver/serial_port.hpp"
+#include "serial_communicator.hpp"
 
 namespace alicia_duo_hardware_interface
 {
@@ -27,7 +28,7 @@ class AliciaHardwareInterface : public hardware_interface::SystemInterface
 {
 public:
     AliciaHardwareInterface();
-    virtual ~AliciaHardwareInterface();
+    virtual ~AliciaHardwareInterface() = default;
 
     // Standard ros2_control lifecycle methods
     hardware_interface::CallbackReturn on_init(const hardware_interface::HardwareInfo & info) override;
@@ -46,42 +47,43 @@ public:
     hardware_interface::return_type read(const rclcpp::Time & time, const rclcpp::Duration & period) override;
     hardware_interface::return_type write(const rclcpp::Time & time, const rclcpp::Duration & period) override;
 
-    hardware_interface::return_type prepare_command_mode_switch(const std::vector<std::string>& start_interfaces, const std::vector<std::string>& stop_interfaces) override;
-    hardware_interface::return_type perform_command_mode_switch(const std::vector<std::string>& start_interfaces, const std::vector<std::string>& stop_interfaces) override;
-
 private:
-    // Serial port communication objects
-    std::unique_ptr<drivers::serial_driver::SerialPort> serial_port_;
-    std::unique_ptr<drivers::common::IoContext> io_context_;
+    // == Hardware Communication ==
+    std::unique_ptr<SerialCommunicator> communicator_;
+
+    // == Configuration (from URDF) ==
     std::string port_name_;
     uint32_t baud_rate_;
-    std::thread read_thread_;
-    bool is_running_;
-    std::mutex serial_mutex_;
-    std::mutex data_mutex_;
+    bool debug_mode_;
 
-    // State and command vectors for ros2_control
+    // == State and Command Vectors (for ros2_control) ==
     static constexpr int NUM_JOINTS = 6;
+    static constexpr int SERVO_COUNT = 9;
     std::vector<double> joint_position_;
     std::vector<double> joint_position_command_;
     double gripper_position_;
     double gripper_position_command_;
-    double gripper_angle_;
-    std::vector<std::string> joint_names_;
-    std::vector<double> filtered_angles_;
+    std::mutex data_mutex_;
 
-    // ROS2 communication
-    rclcpp::Node::SharedPtr node_;
-    rclcpp::Publisher<alicia_duo_driver::msg::ArmJointState>::SharedPtr joint_command_pub_;
-    rclcpp::Subscription<alicia_duo_driver::msg::ArmJointState>::SharedPtr joint_state_sub_;
-    std::thread ros_spin_thread_;
 
-    bool setupROS2Communication();
-    void shutdownROS2Communication();
-    void feedbackCallback(const alicia_duo_driver::msg::ArmJointState::SharedPtr msg);
-    void writeServoCommand(const std::vector<double>& joint_rad, double gripper_rad);
-    std::pair<std::vector<double>, double> readJointAndGripper();
-    bool initializeJoints();
+
+    // == Protocol and Mapping (from the old driver node) ==
+    std::vector<int> joint_to_servo_map_index_;
+    std::vector<double> joint_to_servo_map_direction_;
+    std::vector<int> servo_to_joint_map_index_;
+    std::vector<double> servo_to_joint_map_direction_;
+
+    // == Helper methods moved from the old driver node ==
+    void initialize_maps_and_vectors();
+    void parse_servo_states_frame(const std::vector<uint8_t>& data_payload);
+    void parse_gripper_state_frame(const std::vector<uint8_t>& data_payload);
+    void parse_error_frame(const std::vector<uint8_t>& payload);
+    uint16_t rad_to_hardware_value(double angle_rad);
+    uint16_t rad_to_hardware_value_grip(double angle_rad);
+    double hardware_value_to_rad(uint16_t hw_value);
+    double hardware_value_to_rad_grip(uint16_t hw_value);
+    uint8_t calculate_checksum_for_write(const std::vector<uint8_t>& frame_data);
+    rclcpp::Logger logger_;
 };
 
 }  // namespace alicia_duo_hardware_interface

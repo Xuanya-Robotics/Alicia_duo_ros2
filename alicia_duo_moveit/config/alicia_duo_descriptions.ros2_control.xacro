@@ -1,12 +1,14 @@
 <?xml version="1.0"?>
 <robot xmlns:xacro="http://www.ros.org/wiki/xacro">
     <xacro:macro name="alicia_duo_descriptions_ros2_control" params="name initial_positions_file">
-        <xacro:property name="initial_positions" value="${load_yaml(initial_positions_file)['initial_positions']}"/>
-
+        <xacro:property name="initial_positions" value="${xacro.load_yaml(initial_positions_file)['initial_positions']}"/>
         <ros2_control name="${name}" type="system">
             <hardware>
                 <!-- Use xacro:if/unless to select the plugin -->
-                <plugin>alicia_duo_hardware_interface/AliciaHardwareInterface</plugin>
+                <plugin>alicia_duo_driver/AliciaHardwareInterface</plugin>
+                <param name="port">/dev/ttyUSB0</param>
+                <param name="baud_rate">921600</param>
+                <param name="debug_mode">true</param> <!-- or false -->
             </hardware>
 
             <joint name="Joint1">

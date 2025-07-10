@@ -1,4 +1,4 @@
-#include "alicia_hardware_interface.hpp"
+#include "alicia_duo_driver/alicia_hardware_interface.hpp"
 #include "rclcpp/rclcpp.hpp"
 #include "alicia_duo_driver/msg/arm_joint_state.hpp"
 #include <iostream>

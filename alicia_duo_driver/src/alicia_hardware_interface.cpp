@@ -1,142 +1,52 @@
-#include "alicia_hardware_interface.hpp"
+#include "alicia_duo_driver/alicia_hardware_interface.hpp"
 #include <pluginlib/class_list_macros.hpp>
 #include <rclcpp/rclcpp.hpp>
 #include <cmath>
-#include <iostream>
+#include <numeric>
+#include <vector>
+#include <chrono>
 #include "hardware_interface/types/hardware_interface_type_values.hpp"
 
 namespace alicia_duo_hardware_interface
 {
 
+// Protocol Constants from the driver
+constexpr uint8_t FRAME_START_BYTE = 0xAA;
+constexpr uint8_t FRAME_END_BYTE = 0xFF;
+constexpr uint8_t CMD_SERVO_CONTROL = 0x04;
+constexpr uint8_t CMD_GRIPPER_CONTROL = 0x02;
+constexpr uint8_t CMD_DEMO_CONTROL = 0x13;
+constexpr uint8_t FEEDBACK_GRIPPER_STATE = 0x02;
+constexpr uint8_t FEEDBACK_SERVO_STATE = 0x04;
+constexpr uint8_t FEEDBACK_ERROR = 0xEE;
+
 AliciaHardwareInterface::AliciaHardwareInterface()
-    : gripper_angle_(0.0)
+  : logger_(rclcpp::get_logger("AliciaHardwareInterface"))
 {
-    // Initialize joint names
-    joint_names_ = {
-        "Joint1", "Joint2", "Joint3", 
-        "Joint4", "Joint5", "Joint6"
-    };
-    
-    // Initialize vectors (matching serial_comm_helper.cpp)
-    filtered_angles_.resize(6, 0.0);  // 6 joints + gripper
+  // The constructor body can be empty
 }
-
-AliciaHardwareInterface::~AliciaHardwareInterface()
-{
-    shutdownROS2Communication();
-}
-
-
 hardware_interface::CallbackReturn AliciaHardwareInterface::on_init(
     const hardware_interface::HardwareInfo & info)
 {
-    // Call parent's on_init first (REQUIRED by tutorial)
     if (hardware_interface::SystemInterface::on_init(info) != hardware_interface::CallbackReturn::SUCCESS)
     {
         return hardware_interface::CallbackReturn::ERROR;
     }
-
     info_ = info;
 
-    // Validate that we have the expected number of joints
-    if (info_.joints.size() != NUM_JOINTS)
-    {
-        RCLCPP_ERROR(rclcpp::get_logger("AliciaHardwareInterface"), 
-                    "Expected %d joints, got %zu", NUM_JOINTS, info_.joints.size());    }
 
-    // Initialize joint vectors
-    size_t num_joints = std::max(static_cast<size_t>(NUM_JOINTS), info_.joints.size());
+    // == Read parameters from the URDF <hardware> tag ==
+    port_name_ = info_.hardware_parameters["port"];
+    baud_rate_ = std::stoi(info_.hardware_parameters["baud_rate"]);
+    debug_mode_ = (info_.hardware_parameters.count("debug_mode") && info_.hardware_parameters["debug_mode"] == "true");
 
-    joint_position_.resize(NUM_JOINTS, 0.0);
-    joint_position_command_.resize(NUM_JOINTS, 0.0);
+    RCLCPP_INFO(logger_, 
+                "Parameters loaded: port=%s, baud=%d, debug=%d", 
+                port_name_.c_str(), baud_rate_, debug_mode_);
+
+    initialize_maps_and_vectors();
 
     return hardware_interface::CallbackReturn::SUCCESS;
-}
-
-bool AliciaHardwareInterface::setupROS2Communication()
-{
-    try
-    {
-        // Create node
-        node_ = rclcpp::Node::make_shared("alicia_hardware_interface_node");
-        
-        // Create publisher and subscriber (exactly like serial_comm_helper.cpp)
-        joint_command_pub_ = node_->create_publisher<alicia_duo_driver::msg::ArmJointState>(
-            "arm_joint_command", 10);
-        
-        joint_state_sub_ = node_->create_subscription<alicia_duo_driver::msg::ArmJointState>(
-            "arm_joint_state", 10,
-            std::bind(&AliciaHardwareInterface::feedbackCallback, this, std::placeholders::_1));
-                return true;
-    }
-    catch (const std::exception& e)
-    {
-        RCLCPP_ERROR(rclcpp::get_logger("AliciaHardwareInterface"), 
-                    "Failed to setup ROS2 communication: %s", e.what());
-        return false;
-    }
-}
-
-// Feedback callback (exactly matching serial_comm_helper.cpp)
-void AliciaHardwareInterface::feedbackCallback(const alicia_duo_driver::msg::ArmJointState::SharedPtr msg)
-{
-    std::lock_guard<std::mutex> lock(data_mutex_);
-    // Directly assign the received values to the filtered angles
-    if (joint_position_.size() >= 6) {
-        joint_position_[0] = msg->joint1;
-        joint_position_[1] = msg->joint2;
-        joint_position_[2] = msg->joint3;
-        joint_position_[3] = msg->joint4;
-        joint_position_[4] = msg->joint5;
-        joint_position_[5] = msg->joint6;
-    }
-
-    // Gripper is already in radians (0.0 or 0.14)
-    gripper_angle_ = msg->gripper;
-}
-
-// Write servo command (exactly matching serial_comm_helper.cpp)
-void AliciaHardwareInterface::writeServoCommand(const std::vector<double>& joint_rad, double gripper_rad)
-{
-    alicia_duo_driver::msg::ArmJointState msg;
-
-    // Convert joints from radians and populate the message fields
-    msg.joint1 = joint_rad[0];
-    msg.joint2 = joint_rad[1];
-    msg.joint3 = joint_rad[2];
-    msg.joint4 = joint_rad[3];
-    msg.joint5 = joint_rad[4];
-    msg.joint6 = joint_rad[5];
-
-    // Convert gripper from radians to a binary state (0.0 or 0.14)
-    msg.gripper = (gripper_rad > 0.002) ? 0.14f : 0.0f;
-
-    // Publish the message
-    joint_command_pub_->publish(msg);
-}
-
-// Read joint and gripper (exactly matching serial_comm_helper.cpp)
-std::pair<std::vector<double>, double> AliciaHardwareInterface::readJointAndGripper()
-{
-    std::lock_guard<std::mutex> lock(data_mutex_);
-    return {joint_position_, gripper_angle_};
-}
-
-hardware_interface::return_type AliciaHardwareInterface::read(
-    const rclcpp::Time & /*time*/, const rclcpp::Duration & /*period*/)
-{
-    std::lock_guard<std::mutex> lock(data_mutex_);
-
-    return hardware_interface::return_type::OK;
-}
-
-hardware_interface::return_type AliciaHardwareInterface::write(
-    const rclcpp::Time & /*time*/, const rclcpp::Duration & /*period*/)
-{
-    // Use the same write logic as serial_comm_helper.cpp
-    writeServoCommand(joint_position_command_, gripper_position_command_);
-
-    return hardware_interface::return_type::OK;
 }
 
 
@@ -144,141 +54,305 @@ hardware_interface::return_type AliciaHardwareInterface::write(
 hardware_interface::CallbackReturn AliciaHardwareInterface::on_configure(
     const rclcpp_lifecycle::State & /*previous_state*/)
 {
-
-    if (!initializeJoints())
-    {
-        RCLCPP_ERROR(rclcpp::get_logger("AliciaHardwareInterface"), "Failed to initialize joints");
+    // RCLCPP_INFO(rclcpp::get_logger("AliciaHardwareInterface"), "Configuring hardware interface...");
+    RCLCPP_INFO(logger_, "Configuring hardware interface...");
+    // Create and connect the serial communicator
+    communicator_ = std::make_unique<SerialCommunicator>(port_name_, baud_rate_, debug_mode_, logger_);
+    if (!communicator_->connect()) {
+        // RCLCPP_FATAL(rclcpp::get_logger("AliciaHardwareInterface"), "Failed to connect to serial port %s", port_name_.c_str());
+        RCLCPP_FATAL(logger_, "Failed to connect to serial port %s", port_name_.c_str());
         return hardware_interface::CallbackReturn::ERROR;
     }
 
-    if (!setupROS2Communication())
-    {
-        return hardware_interface::CallbackReturn::ERROR;
-    }
-
+    RCLCPP_INFO(logger_, "Hardware configured successfully.");
     return hardware_interface::CallbackReturn::SUCCESS;
 }
 
-std::vector<hardware_interface::StateInterface> AliciaHardwareInterface::export_state_interfaces()
-{
-    std::vector<hardware_interface::StateInterface> state_interfaces;
 
-    for (size_t i = 0; i < info_.joints.size(); ++i)
-    {
-        state_interfaces.emplace_back(
-            hardware_interface::StateInterface(
-                info_.joints[i].name, "position", &joint_position_[i]));
-    }
-
-    return state_interfaces;
-}
-
-std::vector<hardware_interface::CommandInterface> AliciaHardwareInterface::export_command_interfaces()
-{
-    std::vector<hardware_interface::CommandInterface> command_interfaces;
-
-    for (size_t i = 0; i < info_.joints.size(); ++i)
-    {
-        command_interfaces.emplace_back(
-            hardware_interface::CommandInterface(
-                info_.joints[i].name, "position", &joint_position_command_[i]));
-    }
-
-    return command_interfaces;
-}
 
 hardware_interface::CallbackReturn AliciaHardwareInterface::on_activate(
     const rclcpp_lifecycle::State & /*previous_state*/)
 {
-    // Set command interfaces to current position to avoid sudden movements
+    RCLCPP_INFO(logger_, "Reading initial robot state...");    
+    // IMPORTANT: Read initial state from robot to prevent jerky motion
+    std::this_thread::sleep_for(std::chrono::milliseconds(200));
+    read(rclcpp::Time(0), rclcpp::Duration(0, 0)); 
+    
     {
         std::lock_guard<std::mutex> lock(data_mutex_);
-        for (size_t i = 0; i < joint_position_.size(); ++i)
-        {
+        for (size_t i = 0; i < joint_position_.size(); ++i) {
             joint_position_command_[i] = joint_position_[i];
         }
+        gripper_position_command_ = gripper_position_;
     }
-    // Start the ROS2 spinning in a background thread
-    ros_spin_thread_ = std::thread([this]() {
-        RCLCPP_INFO(node_->get_logger(), "Starting ROS spin thread");
-        // rclcpp::spin(node_);
-        rclcpp::executors::SingleThreadedExecutor executor;
-        executor.add_node(node_);
-        // Spin the executor to process callbacks
-        executor.spin();
 
-        RCLCPP_INFO(node_->get_logger(), "Stopping ROS spin thread");
-    });
-    RCLCPP_INFO(rclcpp::get_logger("AliciaHardwareInterface"), "Hardware interface activated successfully.");
-
+    RCLCPP_INFO(logger_, "Hardware interface activated successfully.");
     return hardware_interface::CallbackReturn::SUCCESS;
 }
+
 
 hardware_interface::CallbackReturn AliciaHardwareInterface::on_deactivate(
     const rclcpp_lifecycle::State & /*previous_state*/)
 {
-    RCLCPP_INFO(rclcpp::get_logger("AliciaHardwareInterface"), "Deactivating hardware interface...");
+    RCLCPP_INFO(logger_, "Deactivating hardware interface...");
     return hardware_interface::CallbackReturn::SUCCESS;
 }
 
 hardware_interface::CallbackReturn AliciaHardwareInterface::on_cleanup(
     const rclcpp_lifecycle::State & /*previous_state*/)
 {
-    RCLCPP_INFO(rclcpp::get_logger("AliciaHardwareInterface"), "Cleaning up hardware interface...");
-    shutdownROS2Communication();
+    RCLCPP_INFO(logger_, "Cleaning up hardware interface...");
+    if (communicator_ && communicator_->is_connected()) {
+        communicator_->disconnect();
+    }
+    communicator_.reset();
     return hardware_interface::CallbackReturn::SUCCESS;
 }
+
 
 hardware_interface::CallbackReturn AliciaHardwareInterface::on_shutdown(
     const rclcpp_lifecycle::State & /*previous_state*/)
 {
-    RCLCPP_INFO(rclcpp::get_logger("AliciaHardwareInterface"), "Shutting down hardware interface...");
-    shutdownROS2Communication();
+    RCLCPP_INFO(logger_, "Shutting down hardware interface...");
+    if (communicator_ && communicator_->is_connected()) {
+        communicator_->disconnect();
+    }
+    communicator_.reset();
     return hardware_interface::CallbackReturn::SUCCESS;
 }
 
 hardware_interface::CallbackReturn AliciaHardwareInterface::on_error(
     const rclcpp_lifecycle::State & /*previous_state*/)
 {
-    RCLCPP_ERROR(rclcpp::get_logger("AliciaHardwareInterface"), "Hardware interface encountered an error");
-    return hardware_interface::CallbackReturn::SUCCESS;
+    RCLCPP_ERROR(logger_, "Error occurred in hardware interface. Shutting down...");
+    if (communicator_ && communicator_->is_connected()) {
+        communicator_->disconnect();
+    }
+    communicator_.reset();
+    // In case of error, we transition to the "Finalized" state.
+    return hardware_interface::CallbackReturn::SUCCESS; 
 }
 
-hardware_interface::return_type AliciaHardwareInterface::prepare_command_mode_switch(
-    const std::vector<std::string> & /*start_interfaces*/,
-    const std::vector<std::string> & /*stop_interfaces*/)
+
+
+std::vector<hardware_interface::CommandInterface> AliciaHardwareInterface::export_command_interfaces()
 {
+    std::vector<hardware_interface::CommandInterface> command_interfaces;
+    // Arm joints
+    for (size_t i = 0; i < NUM_JOINTS; ++i) {
+        command_interfaces.emplace_back(
+            info_.joints[i].name, "position", &joint_position_command_[i]);
+    }
+    // Gripper joint (only if present)
+    if (info_.joints.size() > NUM_JOINTS) {
+        command_interfaces.emplace_back(
+            info_.joints[NUM_JOINTS].name, "position", &gripper_position_command_);
+    }
+    return command_interfaces;
+}
+
+std::vector<hardware_interface::StateInterface> AliciaHardwareInterface::export_state_interfaces()
+{
+    std::vector<hardware_interface::StateInterface> state_interfaces;
+    // Arm joints
+    for (size_t i = 0; i < NUM_JOINTS; ++i) {
+        state_interfaces.emplace_back(
+            info_.joints[i].name, "position", &joint_position_[i]);
+    }
+    // Gripper joint (only if present)
+    if (info_.joints.size() > NUM_JOINTS) {
+        state_interfaces.emplace_back(
+            info_.joints[NUM_JOINTS].name, "position", &gripper_position_);
+    }
+    return state_interfaces;
+}
+
+// ====================================================================
+// The Core Logic: read() and write()
+// ====================================================================
+
+hardware_interface::return_type AliciaHardwareInterface::read(
+    const rclcpp::Time & /*time*/, const rclcpp::Duration & /*period*/)
+{
+    if (!communicator_ || !communicator_->is_connected()) {
+        return hardware_interface::return_type::ERROR;
+    }
+    
+    std::vector<uint8_t> packet;
+    // Process all available packets from the serial port
+    while (communicator_->get_packet(packet)) {
+        if (packet.empty()) continue;
+
+        uint8_t command_id = packet[0];
+        std::vector<uint8_t> data_payload(packet.begin() + 1, packet.end());
+
+        switch (command_id) {
+            case FEEDBACK_SERVO_STATE:
+                parse_servo_states_frame(data_payload);
+                break;
+            case FEEDBACK_GRIPPER_STATE:
+                parse_gripper_state_frame(data_payload);
+                break;
+            case FEEDBACK_ERROR:
+                parse_error_frame(data_payload);
+                break;
+            default:
+                RCLCPP_WARN(logger_, "Received unhandled frame ID: 0x%02X", command_id);
+                break;
+        }
+    }
+
     return hardware_interface::return_type::OK;
 }
 
-hardware_interface::return_type AliciaHardwareInterface::perform_command_mode_switch(
-    const std::vector<std::string> & /*start_interfaces*/,
-    const std::vector<std::string> & /*stop_interfaces*/)
+
+
+hardware_interface::return_type AliciaHardwareInterface::write(
+    const rclcpp::Time & /*time*/, const rclcpp::Duration & /*period*/)
 {
+    if (!communicator_ || !communicator_->is_connected()) {
+        return hardware_interface::return_type::ERROR;
+    }
+    
+    // --- Prepare and Send Servo Control Frame (0x04) ---
+    {
+        std::vector<uint8_t> servo_frame(SERVO_COUNT * 2 + 5, 0);
+        servo_frame[0] = FRAME_START_BYTE;
+        servo_frame[1] = CMD_SERVO_CONTROL;
+        servo_frame[2] = SERVO_COUNT * 2; // Data payload length
+
+        std::lock_guard<std::mutex> lock(data_mutex_);
+        for (int i = 0; i < SERVO_COUNT; ++i) {
+            int joint_idx = joint_to_servo_map_index_[i];
+            double direction = joint_to_servo_map_direction_[i];
+            uint16_t hw_val = 2048; // Default center
+
+            if (static_cast<size_t>(joint_idx) < joint_position_command_.size()) {
+                hw_val = rad_to_hardware_value(joint_position_command_[joint_idx] * direction);
+            }
+            
+            size_t frame_idx = 3 + i * 2;
+            servo_frame[frame_idx] = hw_val & 0xFF;
+            servo_frame[frame_idx + 1] = (hw_val >> 8) & 0xFF;
+        }
+
+        servo_frame[servo_frame.size() - 2] = calculate_checksum_for_write(servo_frame);
+        servo_frame[servo_frame.size() - 1] = FRAME_END_BYTE;
+        communicator_->write_raw_frame(servo_frame);
+    }
+
+    // --- Prepare and Send Gripper Control Frame (0x02) ---
+    {
+        std::vector<uint8_t> gripper_frame(8, 0);
+        gripper_frame[0] = FRAME_START_BYTE;
+        gripper_frame[1] = CMD_GRIPPER_CONTROL;
+        gripper_frame[2] = 3; // Fixed data length
+        gripper_frame[3] = 1; // Gripper ID
+
+        std::lock_guard<std::mutex> lock(data_mutex_);
+        uint16_t gripper_hw_val = rad_to_hardware_value_grip(gripper_position_command_);
+        gripper_frame[4] = gripper_hw_val & 0xFF;
+        gripper_frame[5] = (gripper_hw_val >> 8) & 0xFF;
+        // Bytes 6 and 7 (checksum and end) are set below
+        
+        gripper_frame[gripper_frame.size() - 2] = calculate_checksum_for_write(gripper_frame);
+        gripper_frame[gripper_frame.size() - 1] = FRAME_END_BYTE;
+        communicator_->write_raw_frame(gripper_frame);
+    }
+    
     return hardware_interface::return_type::OK;
 }
 
-bool AliciaHardwareInterface::initializeJoints()
+// ====================================================================
+// Helper Functions (Moved from alicia_duo_driver_node.cpp)
+// ====================================================================
+
+void AliciaHardwareInterface::initialize_maps_and_vectors()
 {
-    std::fill(joint_position_.begin(), joint_position_.end(), 0.0);
-    std::fill(joint_position_command_.begin(), joint_position_command_.end(), 0.0);
-    return true;
+    // State and Command vectors
+    joint_position_.resize(NUM_JOINTS, 0.0);
+    joint_position_command_.resize(NUM_JOINTS, 0.0);
+    gripper_position_ = 0.0;
+    gripper_position_command_ = 0.0;
+
+    // Mapping tables
+    joint_to_servo_map_index_ = {0, 0, 1, 1, 2, 2, 3, 4, 5};
+    joint_to_servo_map_direction_ = {1.0, 1.0, 1.0, -1.0, 1.0, -1.0, 1.0, 1.0, 1.0};
+    servo_to_joint_map_index_ = {0, -1, 1, -1, 2, -1, 3, 4, 5};
+    servo_to_joint_map_direction_ = {1.0, 0, 1.0, 0, 1.0, 0, 1.0, 1.0, 1.0};
 }
 
-void AliciaHardwareInterface::shutdownROS2Communication()
+void AliciaHardwareInterface::parse_servo_states_frame(const std::vector<uint8_t>& data_payload)
 {
-    if (joint_command_pub_)
-    {
-        joint_command_pub_.reset();
+    if (data_payload.empty()) return;
+    uint8_t data_byte_count = data_payload[0];
+    if (data_payload.size() < (size_t)data_byte_count + 1) return;
+    int servos_in_frame = data_byte_count / 2;
+
+    std::lock_guard<std::mutex> lock(data_mutex_);
+    for (int i = 0; i < servos_in_frame && i < SERVO_COUNT; ++i) {
+        size_t data_idx = 1 + i * 2;
+        if (data_idx + 1 >= data_payload.size()) break;
+
+        uint16_t hw_val = data_payload[data_idx] | (data_payload[data_idx + 1] << 8);
+        double rad_val = hardware_value_to_rad(hw_val);
+
+        int joint_idx = servo_to_joint_map_index_[i];
+        if (joint_idx != -1 && static_cast<size_t>(joint_idx) < joint_position_.size()) {
+            joint_position_[joint_idx] = rad_val * servo_to_joint_map_direction_[i];
+        }
     }
-    if (joint_state_sub_)
-    {
-        joint_state_sub_.reset();
-    }
-    if (node_)
-    {
-        node_.reset();
-    }
+}
+
+void AliciaHardwareInterface::parse_gripper_state_frame(const std::vector<uint8_t>& data_payload)
+{
+    if (data_payload.size() < 4) return;
+    uint16_t gripper_hw_val = data_payload[2] | (data_payload[3] << 8);
+    std::lock_guard<std::mutex> lock(data_mutex_);
+    gripper_position_ = hardware_value_to_rad_grip(gripper_hw_val);
+}
+
+void AliciaHardwareInterface::parse_error_frame(const std::vector<uint8_t>& payload)
+{
+    if (payload.size() < 2) return;
+    RCLCPP_ERROR(logger_, 
+                 "HW ERROR: Type=0x%02X, Param=0x%02X", payload[0], payload[1]);
+}
+
+uint8_t AliciaHardwareInterface::calculate_checksum_for_write(const std::vector<uint8_t>& frame_data)
+{
+    if (frame_data.size() < 4) return 0;
+    const uint8_t payload_len = frame_data[2];
+    if (frame_data.size() < (size_t)3 + payload_len) return 0;
+    int sum = std::accumulate(frame_data.begin() + 3, frame_data.begin() + 3 + payload_len, 0);
+    return static_cast<uint8_t>(sum % 2);
+}
+
+// Radian/Hardware value conversions remain the same
+uint16_t AliciaHardwareInterface::rad_to_hardware_value(double angle_rad) {
+    double angle_deg = angle_rad * 180.0 / M_PI;
+    angle_deg = std::max(-180.0, std::min(180.0, angle_deg));
+    int value = static_cast<int>((angle_deg + 180.0) / 360.0 * 4096.0);
+    return std::max(0, std::min(4095, value));
+}
+
+double AliciaHardwareInterface::hardware_value_to_rad(uint16_t hw_value) {
+    hw_value = std::max(0, std::min(4095, (int)hw_value));
+    double angle_deg = -180.0 + (static_cast<double>(hw_value) / 4095.0) * 360.0;
+    return angle_deg * M_PI / 180.0;
+}
+
+uint16_t AliciaHardwareInterface::rad_to_hardware_value_grip(double angle_rad) {
+    double angle_deg = angle_rad * 180.0 / M_PI;
+    angle_deg = std::max(0.0, std::min(100.0, angle_deg));
+    int hardware_value = static_cast<int>(angle_deg * 8.52 + 2048.0);
+    return std::max(2048, std::min(2900, hardware_value));
+}
+
+double AliciaHardwareInterface::hardware_value_to_rad_grip(uint16_t hw_value) {
+    hw_value = std::max(2048, std::min(2900, (int)hw_value));
+    double angle_deg = (static_cast<double>(hw_value) - 2048.0) / 8.52;
+    return angle_deg * M_PI / 180.0;
 }
 
 }  // namespace alicia_duo_hardware_interface

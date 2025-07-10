@@ -51,15 +51,16 @@ static LibSerial::BaudRate int_to_baudrate(uint32_t baud) {
 
 
 
-SerialCommunicator::SerialCommunicator(std::string port_name, uint32_t baud_rate, bool debug_mode)
+SerialCommunicator::SerialCommunicator(std::string port_name, uint32_t baud_rate, bool debug_mode, rclcpp::Logger logger)
     : port_name_(std::move(port_name)),
       baud_rate_(baud_rate),
       debug_mode_(debug_mode),
-      is_running_(false)
+      is_running_(false),
+      logger_(logger)
 {
-    RCLCPP_INFO(rclcpp::get_logger("SerialCommunicator"), "SerialCommunicator created for port '%s' at %u bps.", port_name_.c_str(), baud_rate_);
+    RCLCPP_INFO(logger_, "SerialCommunicator created for port '%s' at %u bps.", port_name_.c_str(), baud_rate_);    
     if (debug_mode_) {
-        RCLCPP_INFO(rclcpp::get_logger("SerialCommunicator"), "Debug mode is enabled.");
+        RCLCPP_INFO(logger_, "Debug mode is enabled.");
     }
 }
 
@@ -73,7 +74,7 @@ bool SerialCommunicator::connect()
     if (is_connected()) {
         return true;
     }
-    RCLCPP_INFO(rclcpp::get_logger("SerialCommunicator"), "Attempting to open serial port: %s @ %u bps", port_name_.c_str(), baud_rate_);
+    RCLCPP_INFO(logger_, "Attempting to open serial port: %s @ %u bps", port_name_.c_str(), baud_rate_);
 
     try {
         serial_port_.Open(port_name_);
@@ -84,23 +85,21 @@ bool SerialCommunicator::connect()
         serial_port_.SetStopBits(LibSerial::StopBits::STOP_BITS_1);
         serial_port_.SetFlowControl(LibSerial::FlowControl::FLOW_CONTROL_NONE);
         
-        // This is the critical fix for many USB-to-Serial devices.
-        // It ensures the device is ready to be configured.
         serial_port_.SetDTR(true);
         serial_port_.SetRTS(true);
 
     } catch (const LibSerial::AlreadyOpen& e) {
-        RCLCPP_WARN(rclcpp::get_logger("SerialCommunicator"), "Serial port was already open: %s", e.what());
+        RCLCPP_WARN(logger_, "Serial port was already open: %s", e.what());
     } catch (const LibSerial::OpenFailed& e) {
-        RCLCPP_ERROR(rclcpp::get_logger("SerialCommunicator"), "Failed to open serial port %s: %s", port_name_.c_str(), e.what());
+        RCLCPP_ERROR(logger_, "Failed to open serial port %s: %s", port_name_.c_str(), e.what());
         return false;
     } catch (const std::exception& e) {
-        RCLCPP_ERROR(rclcpp::get_logger("SerialCommunicator"), "An unexpected error occurred while opening port: %s", e.what());
+        RCLCPP_ERROR(logger_, "An unexpected error occurred while opening port: %s", e.what());
         return false;
     }
     is_running_ = true;
     read_thread_ = std::thread(&SerialCommunicator::read_thread_loop, this);
-    RCLCPP_INFO(rclcpp::get_logger("SerialCommunicator"), "Serial port %s opened successfully. Read thread started.", port_name_.c_str());
+    RCLCPP_INFO(logger_, "Serial port %s opened successfully. Read thread started.", port_name_.c_str());
     return true;
 }
 
@@ -113,9 +112,9 @@ void SerialCommunicator::disconnect()
     if (serial_port_.IsOpen()) {
         try {
             serial_port_.Close();
-            RCLCPP_INFO(rclcpp::get_logger("SerialCommunicator"), "Serial port disconnected.");
+            RCLCPP_INFO(logger_, "Serial port disconnected.");
         } catch (const std::exception& e) {
-            RCLCPP_ERROR(rclcpp::get_logger("SerialCommunicator"), "Exception while closing port: %s", e.what());
+            RCLCPP_ERROR(logger_, "Exception while closing port: %s", e.what());
         }
     }
 }
@@ -139,11 +138,11 @@ bool SerialCommunicator::get_packet(std::vector<uint8_t>& buffer)
 bool SerialCommunicator::write_packet(const std::vector<uint8_t>& payload)
 {
     if (!is_connected()) {
-        RCLCPP_WARN(rclcpp::get_logger("SerialCommunicator"), "Write attempt failed: port is not open.");
+        RCLCPP_WARN(logger_, "Write attempt failed: port is not open.");
         return false;
     }
     if (payload.size() > 255) {
-        RCLCPP_ERROR(rclcpp::get_logger("SerialCommunicator"), "Payload size %zu exceeds maximum of 255.", payload.size());
+        RCLCPP_ERROR(logger_, "Payload size %zu exceeds maximum of 255.", payload.size());
         return false;
     }
 
@@ -162,7 +161,7 @@ bool SerialCommunicator::write_packet(const std::vector<uint8_t>& payload)
         serial_port_.Write(frame_to_send);
         return true;
     } catch (const std::exception& e) {
-        RCLCPP_ERROR(rclcpp::get_logger("SerialCommunicator"), "Exception while writing to serial port: %s. Disconnecting.", e.what());
+        RCLCPP_ERROR(logger_, "Exception while writing to serial port: %s. Disconnecting.", e.what());
         disconnect();
         return false;
     }
@@ -173,7 +172,7 @@ bool SerialCommunicator::write_packet(const std::vector<uint8_t>& payload)
 bool SerialCommunicator::write_raw_frame(const std::vector<uint8_t>& frame)
 {
     if (!is_connected()) {
-        RCLCPP_WARN(rclcpp::get_logger("SerialCommunicator"), "Write raw frame failed: port is not open.");
+        RCLCPP_WARN(logger_, "Write raw frame failed: port is not open.");
         return false;
     }
     // print_hex_frame("Sending Raw: ", frame);
@@ -183,30 +182,28 @@ bool SerialCommunicator::write_raw_frame(const std::vector<uint8_t>& frame)
         try {
              serial_port_.FlushOutputBuffer();
              if (debug_mode_) {
-                 RCLCPP_DEBUG(rclcpp::get_logger("SerialCommunicator"), "Output buffer flushed for port %s.", port_name_.c_str());
+                 RCLCPP_DEBUG(logger_, "Output buffer flushed for port %s.", port_name_.c_str());
              }
         } catch (const std::exception& flush_e) {
-            RCLCPP_WARN(rclcpp::get_logger("SerialCommunicator"), "Exception during flushing output buffer for port %s: %s",
+            RCLCPP_WARN(logger_, "Exception during flushing output buffer for port %s: %s",
                         port_name_.c_str(), flush_e.what());
         }
 
     } catch (const std::exception& e) {
-        RCLCPP_ERROR(rclcpp::get_logger("SerialCommunicator"), "Exception while writing raw frame: %s. Disconnecting.", e.what());
+        RCLCPP_ERROR(logger_, "Exception while writing raw frame: %s. Disconnecting.", e.what());
         disconnect();
         return false;
     }
-
     return true;
 }
 
-// In serial_communicator.cpp
 void SerialCommunicator::read_thread_loop()
 {
     std::vector<uint8_t> frame_buffer;
     bool wait_for_start = true;
     const size_t MAX_FRAME_LENGTH = 64; // Safety limit
 
-    RCLCPP_INFO(rclcpp::get_logger("SerialCommunicator"), "Read thread started (Protocol: AA...FF).");
+    RCLCPP_INFO(logger_, "Read thread started (Protocol: AA...FF).");
 
     while (is_running_) {
         if (!is_connected()) {
@@ -266,12 +263,12 @@ void SerialCommunicator::read_thread_loop()
             // This is normal, just continue the loop
             continue;
         } catch (const std::exception& e) {
-            RCLCPP_ERROR(rclcpp::get_logger("SerialCommunicator"), "Exception in read thread: %s. Disconnecting.", e.what());
+            RCLCPP_ERROR(logger_, "Exception in read thread: %s. Disconnecting.", e.what());
             disconnect();
             wait_for_start = true; // Reset state on disconnect
         }
     }
-    RCLCPP_INFO(rclcpp::get_logger("SerialCommunicator"), "Read thread finished.");
+    RCLCPP_INFO(logger_, "Read thread finished.");
 }
 
 
@@ -293,7 +290,7 @@ uint8_t SerialCommunicator::sumElements(const std::vector<uint8_t>& data) const
     // ROS 1 used >= 4.
      if (data.size() < 4) {
         // Log using ROS 2 logger
-        RCLCPP_ERROR(rclcpp::get_logger("SerialCommunicator"), "Cannot calculate ROS 1 checksum: Data size too small (%zu < 4).", data.size());
+        RCLCPP_ERROR(logger_, "Cannot calculate ROS 1 checksum: Data size too small (%zu < 4).", data.size());
         return 0; // Return a predictable value on error
      }
 
@@ -338,7 +335,7 @@ void SerialCommunicator::print_hex_frame(const std::string& prefix, const std::v
     for (const auto& byte : data) {
         ss << std::setw(2) << static_cast<int>(byte) << " ";
     }
-    RCLCPP_INFO(rclcpp::get_logger("SerialCommunicator"), "%s", ss.str().c_str());
+    RCLCPP_INFO(logger_, "%s", ss.str().c_str());
 }
 
 
