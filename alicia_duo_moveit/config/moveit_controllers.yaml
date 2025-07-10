@@ -8,6 +8,8 @@ moveit_simple_controller_manager:
 
   alicia_controller:
     type: FollowJointTrajectory
+    action_ns: follow_joint_trajectory
+    default: true
     joints:
       - Joint1
       - Joint2

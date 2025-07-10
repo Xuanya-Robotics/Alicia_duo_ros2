@@ -1,0 +1,45 @@
+<?xml version="1.0"?>
+<robot xmlns:xacro="http://www.ros.org/wiki/xacro">
+
+  <xacro:macro name="alicia_duo_ros2_control" params="name use_fake_hardware:=false">
+
+    <ros2_control name="${name}" type="system">
+      <hardware>
+        <xacro:if value="${use_fake_hardware}">
+          <plugin>mock_components/GenericSystem</plugin>
+        </xacro:if>
+        <xacro:unless value="${use_fake_hardware}">
+          <plugin>alicia_duo_hardware_interface/AliciaHardwareInterface</plugin>
+        </xacro:unless>
+      </hardware>
+
+      <joint name="Joint1">
+        <command_interface name="position"/>
+        <state_interface name="position"/>
+      </joint>
+      <joint name="Joint2">
+        <command_interface name="position"/>
+        <state_interface name="position"/>
+      </joint>
+      <joint name="Joint3">
+        <command_interface name="position"/>
+        <state_interface name="position"/>
+      </joint>
+      <joint name="Joint4">
+        <command_interface name="position"/>
+        <state_interface name="position"/>
+      </joint>
+      <joint name="Joint5">
+        <command_interface name="position"/>
+        <state_interface name="position"/>
+      </joint>
+      <joint name="Joint6">
+        <command_interface name="position"/>
+        <state_interface name="position"/>
+      </joint>
+
+    </ros2_control>
+
+  </xacro:macro>
+
+</robot>

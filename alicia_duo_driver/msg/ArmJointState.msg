@@ -10,8 +10,8 @@ float32 joint5
 float32 joint6
 
 # Button states (assuming these are simple integers)
-int32 but1
-int32 but2
+int32 button1
+int32 button2
 
 # Gripper angle (radians)
 float32 gripper
