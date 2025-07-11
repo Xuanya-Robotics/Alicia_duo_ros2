@@ -476,9 +476,9 @@
   </link>
   <joint
     name="left_finger"
-    type="fixed">
+    type="prismatic">
     <origin
-      xyz="0.00275 -0.0011661 0.13779"
+      xyz="0.00275 -0.025 0.13779"
       rpy="1.5451 0 0" />
     <parent
       link="Grasp_base" />
@@ -534,9 +534,9 @@
   </link>
   <joint
     name="right_finger"
-    type="fixed">
+    type="prismatic">
     <origin
-      xyz="0.00275 0.0028325 0.13768"
+      xyz="0.00275 0.025 0.13768"
       rpy="-1.5965 0 0" />
     <parent
       link="Grasp_base" />
@@ -549,6 +549,8 @@
       upper="0.0125"
       effort="5"
       velocity="10" />
+    <mimic joint="left_finger" multiplier="-1" offset="0"/>
+
   </joint>
   <link
     name="tool0">

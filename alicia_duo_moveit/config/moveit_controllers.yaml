@@ -1,14 +1,16 @@
-# MoveIt uses this configuration for controller management
+# In file: alicia_duo_moveit/config/moveit_controllers.yaml
 
-moveit_controller_manager: moveit_simple_controller_manager/MoveItSimpleControllerManager
-
+# All parameters for the simple controller manager and its controllers go under this namespace
 moveit_simple_controller_manager:
+  
+  # List of controllers that the manager should be aware of
   controller_names:
     - alicia_controller
 
   alicia_controller:
     type: FollowJointTrajectory
-    action_ns: follow_joint_trajectory
+    # The action_ns should be the same as the one provided by your ros2_control controller
+    action_ns: follow_joint_trajectory 
     default: true
     joints:
       - Joint1
