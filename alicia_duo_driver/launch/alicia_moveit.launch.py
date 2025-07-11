@@ -14,7 +14,7 @@ def generate_launch_description():
     # |                           Path and File Definitions                             |
     # ===================================================================================
 
-    pkg_dir = get_package_share_directory('aliciad_moveit')
+    pkg_dir = get_package_share_directory('alicia_duo_moveit')
 
     # Get robot description (URDF)
     robot_description_content = Command(
@@ -45,7 +45,8 @@ def generate_launch_description():
     # with open(ompl_planning_pipeline_config_path, 'r') as f:
     #     ompl_planning_pipeline_config = yaml.safe_load(f) 
 
-
+    ompl_planning_yaml = yaml.safe_load(open(os.path.join(pkg_dir, 'config', 'ompl_planning.yaml'), 'r'))
+    ompl_planning_pipeline_config = ompl_planning_yaml['move_group']
     # ===================================================================================
     # |                                 Nodes                                           |
     # ===================================================================================
@@ -73,7 +74,7 @@ def generate_launch_description():
     robot_controller_spawner = Node(
         package='controller_manager',
         executable='spawner',
-        arguments=['alicia_controller', '--controller-manager', '/controller_manager'],
+        arguments=['arm_controller', '--controller-manager', '/controller_manager'],
     )
 
     delay_robot_controller_spawner_after_joint_state_broadcaster_spawner = RegisterEventHandler(
@@ -94,7 +95,7 @@ def generate_launch_description():
             robot_description_semantic,
             kinematics_dict,
             moveit_controllers_dict,
-            # ompl_planning_pipeline_config,
+            ompl_planning_pipeline_config,
         ],
     )
 

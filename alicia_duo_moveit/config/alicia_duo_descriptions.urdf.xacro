@@ -9,6 +9,6 @@
     <xacro:include filename="alicia_duo_descriptions.ros2_control.xacro" />
 
 
-    <!-- <xacro:alicia_duo_descriptions_ros2_control name="FakeSystem" initial_positions_file="$(arg initial_positions_file)"/> -->
     <xacro:alicia_duo_descriptions_ros2_control name="AliciaDuoSystem" initial_positions_file="$(arg initial_positions_file)"/>
+
 </robot>

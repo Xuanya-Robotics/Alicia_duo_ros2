@@ -3,34 +3,34 @@ controller_manager:
   ros__parameters:
     update_rate: 100  # Hz
 
-    alicia_controller:
+    arm_controller:
       type: joint_trajectory_controller/JointTrajectoryController
 
-    gripper_controller:
+
+    hand_controller:
       type: joint_trajectory_controller/JointTrajectoryController
+
 
     joint_state_broadcaster:
       type: joint_state_broadcaster/JointStateBroadcaster
 
-
-alicia_controller:
+arm_controller:
   ros__parameters:
     joints:
-      - Joint1
-      - Joint2
-      - Joint3
-      - Joint4
-      - Joint5
-      - Joint6
+      - joint1
+      - joint2
+      - joint3
+      - joint4
+      - joint5
+      - joint6
     command_interfaces:
       - position
     state_interfaces:
       - position
-
-gripper_controller:
+hand_controller:
   ros__parameters:
     joints:
-      - left_finger
+      - right_finger
     command_interfaces:
       - position
     state_interfaces:

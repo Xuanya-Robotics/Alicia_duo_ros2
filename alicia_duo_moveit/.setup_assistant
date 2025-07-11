@@ -5,9 +5,9 @@ moveit_setup_assistant_config:
   srdf:
     relative_path: config/alicia_duo_descriptions.srdf
   package_settings:
-    author_name: xuanyanRobotics
-    author_email: xuanyanRobotics@163.com
-    generated_timestamp: 1752213126
+    author_name: x
+    author_email: x@163.com
+    generated_timestamp: 1752225345
   control_xacro:
     command:
       - position

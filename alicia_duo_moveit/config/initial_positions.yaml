@@ -1,10 +1,10 @@
 # Default initial positions for alicia_duo_descriptions's ros2_control fake system
 
 initial_positions:
-  Joint1: 0
-  Joint2: 0
-  Joint3: 0
-  Joint4: 0
-  Joint5: 0
-  Joint6: 0
-  left_finger: 0
+  joint1: 0
+  joint2: 0
+  joint3: 0
+  joint4: 0
+  joint5: 0
+  joint6: 0
+  right_finger: 0

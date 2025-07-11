@@ -74,7 +74,7 @@
     </collision>
   </link>
   <joint
-    name="Joint1"
+    name="joint1"
     type="revolute">
     <origin
       xyz="0 0 0.1445"
@@ -132,7 +132,7 @@
     </collision>
   </link>
   <joint
-    name="Joint2"
+    name="joint2"
     type="revolute">
     <origin
       xyz="0 0 0.025106"
@@ -190,7 +190,7 @@
     </collision>
   </link>
   <joint
-    name="Joint3"
+    name="joint3"
     type="revolute">
     <origin
       xyz="0.22367 0.022494 -5E-05"
@@ -248,7 +248,7 @@
     </collision>
   </link>
   <joint
-    name="Joint4"
+    name="joint4"
     type="revolute">
     <origin
       xyz="0.0988 0.00211 -0.0001"
@@ -306,7 +306,7 @@
     </collision>
   </link>
   <joint
-    name="Joint5"
+    name="joint5"
     type="revolute">
     <origin
       xyz="0 -0.0007 0.12011"
@@ -364,7 +364,7 @@
     </collision>
   </link>
   <joint
-    name="Joint6"
+    name="joint6"
     type="revolute">
     <origin
       xyz="-0.0038938 -0.0573 0.0008"
@@ -422,7 +422,7 @@
     </collision>
   </link>
   <joint
-    name="Joint6_to_gripper_base"
+    name="joint6_to_gripper_base"
     type="fixed">
     <origin
       xyz="0 0 0"
@@ -434,64 +434,7 @@
     <axis
       xyz="0 0 0" />
   </joint>
-  <link
-    name="Link7">
-    <inertial>
-      <origin
-        xyz="0.00110740859468716 -0.0505406087264605 0.00928374528946711"
-        rpy="0 0 0" />
-      <mass
-        value="0.0243492837152759" />
-      <inertia
-        ixx="9.48475810350875E-06"
-        ixy="1.12616534990615E-06"
-        ixz="-1.29347870071083E-07"
-        iyy="4.30364201605636E-06"
-        iyz="1.0784812114242E-06"
-        izz="1.21997143402446E-05" />
-    </inertial>
-    <visual>
-      <origin
-        xyz="0 0 0"
-        rpy="0 0 0" />
-      <geometry>
-        <mesh
-          filename="package://alicia_duo_descriptions/meshes/Link7.STL" />
-      </geometry>
-      <material
-        name="">
-        <color
-          rgba="1 1 1 1" />
-      </material>
-    </visual>
-    <collision>
-      <origin
-        xyz="0 0 0"
-        rpy="0 0 0" />
-      <geometry>
-        <mesh
-          filename="package://alicia_duo_descriptions/meshes/Link7.STL" />
-      </geometry>
-    </collision>
-  </link>
-  <joint
-    name="left_finger"
-    type="prismatic">
-    <origin
-      xyz="0.00275 -0.025 0.13779"
-      rpy="1.5451 0 0" />
-    <parent
-      link="Grasp_base" />
-    <child
-      link="Link7" />
-    <axis
-      xyz="0 0 1" />
-    <limit
-      lower="-0.022"
-      upper="0"
-      effort="5"
-      velocity="10" />
-  </joint>
+
   <link
     name="Link8">
     <inertial>
@@ -522,15 +465,6 @@
           rgba="0.807843137254902 0.843137254901961 0.905882352941176 1" />
       </material>
     </visual>
-    <collision>
-      <origin
-        xyz="0 0 0"
-        rpy="0 0 0" />
-      <geometry>
-        <mesh
-          filename="package://alicia_duo_descriptions/meshes/Link8.STL" />
-      </geometry>
-    </collision>
   </link>
   <joint
     name="right_finger"
@@ -549,9 +483,65 @@
       upper="0.022"
       effort="5"
       velocity="10" />
-    <mimic joint="left_finger" multiplier="-1" offset="0"/>
 
   </joint>
+
+
+
+
+  <link
+    name="Link7">
+    <inertial>
+      <origin
+        xyz="0.00110740859468716 -0.0505406087264605 0.00928374528946711"
+        rpy="0 0 0" />
+      <mass
+        value="0.0243492837152759" />
+      <inertia
+        ixx="9.48475810350875E-06"
+        ixy="1.12616534990615E-06"
+        ixz="-1.29347870071083E-07"
+        iyy="4.30364201605636E-06"
+        iyz="1.0784812114242E-06"
+        izz="1.21997143402446E-05" />
+    </inertial>
+    <visual>
+      <origin
+        xyz="0 0 0"
+        rpy="0 0 0" />
+      <geometry>
+        <mesh
+          filename="package://alicia_duo_descriptions/meshes/Link7.STL" />
+      </geometry>
+      <material
+        name="">
+        <color
+          rgba="1 1 1 1" />
+      </material>
+    </visual>
+
+  </link>
+  <joint
+    name="left_finger"
+    type="prismatic">
+    <origin
+      xyz="0.00275 -0.025 0.13779"
+      rpy="1.5451 0 0" />
+    <parent
+      link="Grasp_base" />
+    <child
+      link="Link7" />
+    <axis
+      xyz="0 0 1" />
+    <limit
+      lower="-0.022"
+      upper="0"
+      effort="5"
+      velocity="10" />
+    <mimic joint="right_finger" multiplier="-1" offset="0"/>
+
+  </joint>
+
   <link
     name="tool0">
     <visual>

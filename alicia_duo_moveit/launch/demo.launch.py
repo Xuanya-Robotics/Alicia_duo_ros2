@@ -91,7 +91,7 @@ def launch_setup(context, *args, **kwargs):
 
     # ros2_control using FakeSystem as hardware
     ros2_controllers_path = os.path.join(
-        get_package_share_directory("aliciad_moveit"),
+        get_package_share_directory("alicia_duo_moveit"),
         "config",
         "ros2_controllers.yaml",
     )
@@ -118,13 +118,13 @@ def launch_setup(context, *args, **kwargs):
     arm_controller_spawner = Node(
         package="controller_manager",
         executable="spawner",
-        arguments=["alicia_controller", "-c", "/controller_manager"],
+        arguments=["arm_controller", "-c", "/controller_manager"],
     )
 
     gripper_controller_spawner = Node(
         package="controller_manager",
         executable="spawner",
-        arguments=["gripper_controller", "-c", "/controller_manager"],
+        arguments=["hand_controller", "-c", "/controller_manager"],
     )
 
     nodes_to_start = [

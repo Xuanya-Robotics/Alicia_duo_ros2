@@ -47,7 +47,7 @@ hardware_interface::CallbackReturn AliciaHardwareInterface::on_init(
 
     // Hardcoded list of expected arm joint names in their logical order.
     const std::vector<std::string> expected_arm_joints = {
-        "Joint1", "Joint2", "Joint3", "Joint4", "Joint5", "Joint6"
+        "joint1", "joint2", "joint3", "joint4", "joint5", "joint6"
     };
     
     // Check if URDF matches expectations
@@ -63,7 +63,7 @@ hardware_interface::CallbackReturn AliciaHardwareInterface::on_init(
             // It's an arm joint. Its index is its position in the expected list.
             size_t index = std::distance(expected_arm_joints.begin(), it);
             joint_name_to_index_map_[joint.name] = index;
-        } else if (joint.name == "left_finger") {
+        } else if (joint.name == "right_finger") {
             // It's the gripper, we handle it separately. No mapping needed.
         } else {
             RCLCPP_FATAL(logger_, "URDF contains an unexpected joint: '%s'", joint.name.c_str());
@@ -161,22 +161,6 @@ hardware_interface::CallbackReturn AliciaHardwareInterface::on_error(
 
 
 
-// std::vector<hardware_interface::CommandInterface> AliciaHardwareInterface::export_command_interfaces()
-// {
-//     std::vector<hardware_interface::CommandInterface> command_interfaces;
-//     // Arm joints
-//     for (size_t i = 0; i < NUM_JOINTS; ++i) {
-//         command_interfaces.emplace_back(
-//             info_.joints[i].name, "position", &joint_position_command_[i]);
-//     }
-//     // Gripper joint (only if present)
-//     if (info_.joints.size() > NUM_JOINTS) {
-//         command_interfaces.emplace_back(
-//             info_.joints[NUM_JOINTS].name, "position", &gripper_position_command_);
-//     }
-//     return command_interfaces;
-// }
-
 
 
 
@@ -187,7 +171,7 @@ std::vector<hardware_interface::CommandInterface> AliciaHardwareInterface::expor
     // Iterate through the joints declared in the URDF
     for (const auto & joint : info_.joints)
     {
-        if (joint.name == "left_finger") {
+        if (joint.name == "right_finger") {
             // Handle the gripper directly (safe)
             command_interfaces.emplace_back(
                 joint.name, "position", &gripper_position_command_);
@@ -208,7 +192,7 @@ std::vector<hardware_interface::StateInterface> AliciaHardwareInterface::export_
     // Iterate through the joints declared in the URDF
     for (const auto & joint : info_.joints)
     {
-        if (joint.name == "left_finger") {
+        if (joint.name == "right_finger") {
             // Handle the gripper directly (safe)
             state_interfaces.emplace_back(
                 joint.name, "position", &gripper_position_);
@@ -221,21 +205,6 @@ std::vector<hardware_interface::StateInterface> AliciaHardwareInterface::export_
     }
     return state_interfaces;
 }
-// std::vector<hardware_interface::StateInterface> AliciaHardwareInterface::export_state_interfaces()
-// {
-//     std::vector<hardware_interface::StateInterface> state_interfaces;
-//     // Arm joints
-//     for (size_t i = 0; i < NUM_JOINTS; ++i) {
-//         state_interfaces.emplace_back(
-//             info_.joints[i].name, "position", &joint_position_[i]);
-//     }
-//     // Gripper joint (only if present)
-//     if (info_.joints.size() > NUM_JOINTS) {
-//         state_interfaces.emplace_back(
-//             info_.joints[NUM_JOINTS].name, "position", &gripper_position_);
-//     }
-//     return state_interfaces;
-// }
 
 // ====================================================================
 // The Core Logic: read() and write()

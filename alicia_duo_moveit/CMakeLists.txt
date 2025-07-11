@@ -1,5 +1,5 @@
 cmake_minimum_required(VERSION 3.22)
-project(aliciad_moveit)
+project(alicia_duo_moveit)
 
 find_package(ament_cmake REQUIRED)
 
