@@ -14,11 +14,11 @@ def generate_launch_description():
     # |                           Path and File Definitions                             |
     # ===================================================================================
 
-    pkg_dir = get_package_share_directory('alicia_duo_moveit')
+    pkg_dir = get_package_share_directory('aliciad_moveit')
 
     # Get robot description (URDF)
     robot_description_content = Command(
-        ['xacro ', os.path.join(pkg_dir, 'config', 'alicia_duo_descriptions_real.urdf.xacro')]
+        ['xacro ', os.path.join(pkg_dir, 'config', 'alicia_duo_descriptions.urdf.xacro')]
     )
     robot_description = {'robot_description': ParameterValue(robot_description_content, value_type=str)}
 
@@ -41,9 +41,9 @@ def generate_launch_description():
     # ros2_control parameters
     robot_controllers = os.path.join(pkg_dir, 'config', 'ros2_controllers.yaml')
 
-    ompl_planning_pipeline_config_path = os.path.join(pkg_dir, 'config', 'ompl_planning.yaml') # <-- ADD THIS
-    with open(ompl_planning_pipeline_config_path, 'r') as f:
-        ompl_planning_pipeline_config = yaml.safe_load(f) 
+    # ompl_planning_pipeline_config_path = os.path.join(pkg_dir, 'config', 'ompl_planning.yaml') # <-- ADD THIS
+    # with open(ompl_planning_pipeline_config_path, 'r') as f:
+    #     ompl_planning_pipeline_config = yaml.safe_load(f) 
 
 
     # ===================================================================================
@@ -94,7 +94,7 @@ def generate_launch_description():
             robot_description_semantic,
             kinematics_dict,
             moveit_controllers_dict,
-            ompl_planning_pipeline_config,
+            # ompl_planning_pipeline_config,
         ],
     )
 

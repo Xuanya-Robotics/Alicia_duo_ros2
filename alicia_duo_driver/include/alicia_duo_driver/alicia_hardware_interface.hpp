@@ -72,6 +72,7 @@ private:
     std::vector<double> joint_to_servo_map_direction_;
     std::vector<int> servo_to_joint_map_index_;
     std::vector<double> servo_to_joint_map_direction_;
+    std::unordered_map<std::string, size_t> joint_name_to_index_map_;
 
     // == Helper methods moved from the old driver node ==
     void initialize_maps_and_vectors();
@@ -84,6 +85,7 @@ private:
     double hardware_value_to_rad_grip(uint16_t hw_value);
     uint8_t calculate_checksum_for_write(const std::vector<uint8_t>& frame_data);
     rclcpp::Logger logger_;
+
 };
 
 }  // namespace alicia_duo_hardware_interface

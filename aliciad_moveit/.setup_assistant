@@ -5,15 +5,14 @@ moveit_setup_assistant_config:
   srdf:
     relative_path: config/alicia_duo_descriptions.srdf
   package_settings:
-    author_name: alicia
-    author_email: alicia@qq.com
-    generated_timestamp: 1747193263
+    author_name: xuanyanRobotics
+    author_email: xuanyanRobotics@163.com
+    generated_timestamp: 1752213126
   control_xacro:
     command:
       - position
     state:
       - position
-      - velocity
   modified_urdf:
     xacros:
       - control_xacro
@@ -22,4 +21,3 @@ moveit_setup_assistant_config:
       - position
     state:
       - position
-      - velocity

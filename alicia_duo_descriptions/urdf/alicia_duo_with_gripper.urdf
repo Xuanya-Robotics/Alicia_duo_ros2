@@ -485,9 +485,9 @@
     <child
       link="Link7" />
     <axis
-      xyz="0 0 0" />
+      xyz="0 0 1" />
     <limit
-      lower="-0.0125"
+      lower="-0.022"
       upper="0"
       effort="5"
       velocity="10" />
@@ -543,10 +543,10 @@
     <child
       link="Link8" />
     <axis
-      xyz="0 0 0" />
+      xyz="0 0 -1" />
     <limit
       lower="0"
-      upper="0.0125"
+      upper="0.022"
       effort="5"
       velocity="10" />
     <mimic joint="left_finger" multiplier="-1" offset="0"/>

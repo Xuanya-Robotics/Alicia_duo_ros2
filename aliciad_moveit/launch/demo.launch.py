@@ -1,14 +1,16 @@
 import os
 from launch import LaunchDescription
-from launch.actions import DeclareLaunchArgument, OpaqueFunction, RegisterEventHandler
-from launch.event_handlers import OnProcessExit
+from launch.actions import DeclareLaunchArgument, OpaqueFunction
 from launch.substitutions import LaunchConfiguration, PathJoinSubstitution
 from launch_ros.actions import Node
 from launch_ros.substitutions import FindPackageShare
+from ament_index_python.packages import get_package_share_directory
 from moveit_configs_utils import MoveItConfigsBuilder
 
+
+
 def generate_launch_description():
-    # This is the main launch file for the real robot
+
     declared_arguments = []
     declared_arguments.append(
         DeclareLaunchArgument(
@@ -22,16 +24,23 @@ def generate_launch_description():
         declared_arguments + [OpaqueFunction(function=launch_setup)]
     )
 
+
+
+
 def launch_setup(context, *args, **kwargs):
+
     moveit_config = (
-        MoveItConfigsBuilder("alicia_duo_descriptions", package_name="alicia_duo_moveit")
-        .robot_description(
-            file_path="config/alicia_duo_descriptions_real.urdf.xacro",
-        )
+        MoveItConfigsBuilder("alicia_duo_descriptions", package_name="aliciad_moveit")
+        .robot_description(file_path="config/alicia_duo_descriptions.urdf.xacro")
         .trajectory_execution(file_path="config/moveit_controllers.yaml")
+        .planning_scene_monitor(
+            publish_robot_description=True, publish_robot_description_semantic=True
+        )
+        .planning_pipelines(
+            pipelines=["ompl", "chomp", "pilz_industrial_motion_planner"]
+        )
         .to_moveit_configs()
     )
-
 
     # Start the actual move_group node/action server
     run_move_group_node = Node(
@@ -41,10 +50,12 @@ def launch_setup(context, *args, **kwargs):
         parameters=[moveit_config.to_dict()],
     )
 
-    # RViz
+    rviz_base = LaunchConfiguration("rviz_config")
     rviz_config = PathJoinSubstitution(
-        [FindPackageShare("alicia_duo_moveit"), "config", LaunchConfiguration("rviz_config")]
+        [FindPackageShare("aliciad_moveit"), "config", rviz_base]
     )
+
+    # RViz
     rviz_node = Node(
         package="rviz2",
         executable="rviz2",
@@ -55,6 +66,8 @@ def launch_setup(context, *args, **kwargs):
             moveit_config.robot_description,
             moveit_config.robot_description_semantic,
             moveit_config.robot_description_kinematics,
+            moveit_config.planning_pipelines,
+            moveit_config.joint_limits,
         ],
     )
 
@@ -67,7 +80,7 @@ def launch_setup(context, *args, **kwargs):
         arguments=["0.0", "0.0", "0.0", "0.0", "0.0", "0.0", "world", "base_link"],
     )
 
-    # robot_state_publisher
+    # Publish TF
     robot_state_publisher = Node(
         package="robot_state_publisher",
         executable="robot_state_publisher",
@@ -76,59 +89,53 @@ def launch_setup(context, *args, **kwargs):
         parameters=[moveit_config.robot_description],
     )
 
-
-    ros2_controllers_path = PathJoinSubstitution(
-        [
-            FindPackageShare("alicia_duo_moveit"),
-            "config",
-            "ros2_controllers.yaml",
-        ]
+    # ros2_control using FakeSystem as hardware
+    ros2_controllers_path = os.path.join(
+        get_package_share_directory("aliciad_moveit"),
+        "config",
+        "ros2_controllers.yaml",
     )
 
     ros2_control_node = Node(
         package="controller_manager",
         executable="ros2_control_node",
         parameters=[moveit_config.robot_description, ros2_controllers_path],
-        output="screen",
+        output="both",
     )
 
-    # Spawners
     joint_state_broadcaster_spawner = Node(
         package="controller_manager",
         executable="spawner",
-        arguments=["joint_state_broadcaster", "--controller-manager", "/controller_manager"],
+        arguments=[
+            "joint_state_broadcaster",
+            "--controller-manager-timeout",
+            "300",
+            "--controller-manager",
+            "/controller_manager",
+        ],
     )
 
-    robot_controller_spawner = Node(
+    arm_controller_spawner = Node(
         package="controller_manager",
         executable="spawner",
-        arguments=["alicia_controller", "--controller-manager", "/controller_manager"],
+        arguments=["alicia_controller", "-c", "/controller_manager"],
     )
 
-    # Delay start of spawners after ros2_control_node is up
-    delay_spawners = RegisterEventHandler(
-        event_handler=OnProcessExit(
-            target_action=ros2_control_node,
-            on_exit=[joint_state_broadcaster_spawner, robot_controller_spawner],
-        )
-    )
-
-    alicia_driver_node = Node(
-        package="alicia_duo_driver",
-        executable="alicia_duo_driver_node",
-        name="alicia_duo_driver_node",
-        output="screen",
-        parameters=[{"serial_port": "/dev/ttyUSB0"}] # Make sure this port is correct
+    gripper_controller_spawner = Node(
+        package="controller_manager",
+        executable="spawner",
+        arguments=["gripper_controller", "-c", "/controller_manager"],
     )
 
     nodes_to_start = [
-        alicia_driver_node, # Add the driver node here
         rviz_node,
         static_tf,
         robot_state_publisher,
         run_move_group_node,
         ros2_control_node,
-        delay_spawners,
+        joint_state_broadcaster_spawner,
+        arm_controller_spawner,
+        gripper_controller_spawner,
     ]
 
     return nodes_to_start
