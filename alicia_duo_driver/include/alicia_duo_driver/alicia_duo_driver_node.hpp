@@ -49,7 +49,7 @@ private:
     rclcpp::TimerBase::SharedPtr reconnect_timer_;
 
     // Publishers
-    rclcpp::Publisher<alicia_duo_driver::msg::ArmJointState>::SharedPtr joint_state_pub_;
+    // rclcpp::Publisher<alicia_duo_driver::msg::ArmJointState>::SharedPtr joint_state_pub_;
     rclcpp::Publisher<std_msgs::msg::Float32MultiArray>::SharedPtr array_pub_;
     rclcpp::Publisher<sensor_msgs::msg::JointState>::SharedPtr joint_state_pub_std_;
     // Subscribers

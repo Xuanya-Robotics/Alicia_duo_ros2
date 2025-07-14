@@ -129,7 +129,7 @@ void AliciaDuoDriverNode::joint_command_callback(const sensor_msgs::msg::JointSt
     double gripper_value = 0.0;
     auto it_grip = joint_map.find("right_finger");
     if (it_grip != joint_map.end()) {
-        gripper_value = it_grip->second;
+        gripper_value = it_grip->second * 100;
     }
 
     // --- Prepare and Send Servo Control Frame (0x04) ---

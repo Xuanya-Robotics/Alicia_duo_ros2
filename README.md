@@ -34,11 +34,9 @@
 
 | 话题名称             | 消息类型                           | 方向        | 描述                                                                |
 | :------------------- | :--------------------------------- | :---------- | :------------------------------------------------------------------ |
-| `/arm_joint_state`   | `alicia_duo_driver/ArmJointState`  | **读取**    | 订阅此话题以获取机械臂所有关节和夹爪的**当前状态**（弧度单位）。    |
-| `/arm_joint_command` | `alicia_duo_driver/ArmJointState`  | **发送**    | 发布到此话题以**同时控制**机械臂的6个主要关节和夹爪的目标位置（弧度）。 |
+| `/joint_states`   | `sensor_msgs/msg/JointState`  | **读取/发送**    | 订阅/发布此话题以获取/控制机械臂所有关节和夹爪    |
 | `/zero_calibrate`    | `std_msgs/msg/Bool`                | **发送**    | 发布 `true` 到此话题以触发机械臂的零位校准命令。                   |
 | `/demonstration`     | `std_msgs/msg/Bool`                | **发送**    | 发布 `true` 使能，发布 `false`失能。 |
-
 
 ### 3.2 内部接口 (调试用)
 
@@ -115,13 +113,14 @@ float32 gripper
     ```bash
     mkdir -p ~/alicia_ws/src
     cd ~/alicia_ws
-    git clone https://github.com/Xianova-Robotics/Alicia_duo_ros2.git ./src
+    git clone https://github.com/Xuanya-Robotics/Alicia-D-ROS2.git ./src
     ```
 
 ### 4.3 编译工作空间
 
 ```bash
 cd ~/alicia_ws
+rosdep install --from-paths src --ignore-src -r -y 
 colcon build
 ```
 
@@ -164,20 +163,14 @@ source ~/.bashrc
     sudo chmod 666 /dev/ttyUSB0 # 将 ttyUSB0 替换为你的设备
     ```
 
-### 4.6 脚本执行权限
 
-确保所有 Python 脚本都具有执行权限（`colcon build` 和 `install(PROGRAMS ...)` 通常会处理，但手动检查更保险）：
-
-```bash
-chmod +x ~/alicia_ws/src/alicia_duo_driver/scripts/*.py
-```
 
 ### 4.7 硬件连接验证
 
 1.  将机械臂通过 USB 连接至计算机。
 2.  检查串口是否被系统识别：
     ```bash
-    ls -l /dev/ttyUSB* /dev/ttyACM*
+    ls -l /dev/ttyUSB* /dev/ttyUSB*
     ```
     记下你的设备名称 (例如 `ttyUSB0`)。
 
@@ -186,190 +179,17 @@ chmod +x ~/alicia_ws/src/alicia_duo_driver/scripts/*.py
 使用提供的 Launch 文件启动所有节点：
 
 ```bash
-ros2 launch alicia_duo_driver serial_driver_launch.py [参数名称:=参数值 ...]
+ros2 launch alicia_duo_driver alicia_duo_driver.launch.py [参数名称:=参数值 ...]
 ```
 
-**可配置参数 (Launch 参数):**
-
-| 参数名称         | 默认值     | 说明                                                          |
-| :--------------- | :--------- | :------------------------------------------------------------ |
-| `port`           | `ttyUSB0`  | 串口设备名称 (位于 `/dev/` 下)                                |
-| `baudrate`       | `921600`   | 串口波特率                                                     |
-| `timeout_ms`     | `1000`     | C++ 驱动读取串口的超时时间 (毫秒)                            |
-| `py_debug`       | `false`    | 是否为所有 Python 节点启用详细的调试日志 (`true` 或 `false`)  |
-| `servo_count`    | `9`        | `joint_state_publisher` 和 `arm_control` 期望的舵机数量         |
-| `rate_limit_sec` | `0.01`     | `joint_state_publisher` 处理数据的最小时间间隔 (秒)            |
-
-**启动示例:**
-
-*   使用默认设置：
-    ```bash
-    ros2 launch alicia_duo_driver serial_driver_launch.py
-    ```
-*   指定端口并启用 Python 调试：
-    ```bash
-    ros2 launch alicia_duo_driver serial_driver_launch.py port:=ttyACM0 py_debug:=true
-    ```
-*   修改波特率：
-    ```bash
-    ros2 launch alicia_duo_driver serial_driver_launch.py baudrate:=115200
-    ```
-
-## 6. 使用方法
-
-### 6.1 发送控制命令 (Python 示例)
-
-```python
-#!/usr/bin/env python3
-import rclpy
-from rclpy.node import Node
-import math
-from alicia_duo_driver.msg import ArmJointState
-from std_msgs.msg import Float32
-
-class ArmCommander(Node):
-    def __init__(self):
-        super().__init__('arm_commander_example')
-        # Publisher for combined joint commands
-        self.cmd_pub = self.create_publisher(ArmJointState, '/arm_joint_command', 10)
-        # Publisher for separate gripper commands
-        self.gripper_pub = self.create_publisher(Float32, '/gripper_control', 10)
-        self.get_logger().info('Arm Commander Node Started. Waiting 2s before sending commands...')
-        # Allow time for other nodes to start
-        self.create_timer(2.0, self.send_commands_callback)
-
-    def send_commands_callback(self):
-        self.get_logger().info('Sending commands...')
-
-        # --- Example 1: Send combined joint command (all joints + gripper) ---
-        cmd = ArmJointState()
-        cmd.header.stamp = self.get_clock().now().to_msg()
-
-        # Set joint angles (convert degrees to radians)
-        cmd.joint1 = math.radians(0.0)    # Base
-        cmd.joint2 = math.radians(0.0)    # Shoulder
-        cmd.joint3 = math.radians(0.0)    # Elbow
-        cmd.joint4 = math.radians(0.0)    # Wrist Rotate
-        cmd.joint5 = math.radians(30.0)   # Wrist Pitch
-        cmd.joint6 = math.radians(0.0)    # Wrist Roll
-        cmd.gripper = math.radians(10.0)  # Gripper 10 degrees open (approx 0.17 rad)
-
-        self.cmd_pub.publish(cmd)
-        self.get_logger().info('Published command to /arm_joint_command')
-        time.sleep(3.0) # Wait a bit
-
-        # --- Example 2: Send separate gripper command ---
-        gripper_cmd = Float32()
-        gripper_cmd.data = math.radians(80.0) # Gripper 80 degrees open (approx 1.4 rad)
-
-        self.gripper_pub.publish(gripper_cmd)
-        self.get_logger().info(f'Published command {gripper_cmd.data:.3f} rad to /gripper_control')
-        time.sleep(3.0)
-
-        # --- Example 3: Send another combined command (gripper value ignored if using separate control often) ---
-        cmd.joint5 = math.radians(-30.0)
-        cmd.gripper = math.radians(0.0) # Set gripper to 0 (closed) via combined message
-        cmd.header.stamp = self.get_clock().now().to_msg()
-        self.cmd_pub.publish(cmd)
-        self.get_logger().info('Published another command to /arm_joint_command')
 
 
-        # Shutdown after sending commands
-        self.get_logger().info('Commands sent. Shutting down commander.')
-        rclpy.shutdown()
+## 6. Moveit 使用方法
 
-
-def main(args=None):
-    rclpy.init(args=args)
-    node = ArmCommander()
-    try:
-        rclpy.spin(node)
-    except KeyboardInterrupt:
-        pass
-    finally:
-        node.destroy_node()
-        # Ensure shutdown happens even if spin wasn't reached
-        if rclpy.ok():
-            rclpy.shutdown()
-
-if __name__ == '__main__':
-    main()
 ```
-
-### 6.2 读取关节状态 (Python 示例)
-
-```python
-#!/usr/bin/env python3
-import rclpy
-from rclpy.node import Node
-import math
-from alicia_duo_driver.msg import ArmJointState
-
-class ArmStateMonitor(Node):
-    def __init__(self):
-        super().__init__('arm_state_monitor')
-        self.subscription = self.create_subscription(
-            ArmJointState,
-            '/arm_joint_state',
-            self.joint_state_callback,
-            10) # QoS depth
-        self.get_logger().info('Arm State Monitor Started. Listening to /arm_joint_state...')
-
-    def joint_state_callback(self, msg: ArmJointState):
-        # Convert radians to degrees for readability
-        j1 = math.degrees(msg.joint1)
-        j2 = math.degrees(msg.joint2)
-        j3 = math.degrees(msg.joint3)
-        j4 = math.degrees(msg.joint4)
-        j5 = math.degrees(msg.joint5)
-        j6 = math.degrees(msg.joint6)
-        grip = math.degrees(msg.gripper)
-
-        log_str = (
-            f"Current State (degrees):\n"
-            f"  Joints: [{j1:.2f}, {j2:.2f}, {j3:.2f}, {j4:.2f}, {j5:.2f}, {j6:.2f}]\n"
-            f"  Gripper: {grip:.2f}\n"
-            f"  Buttons: [{msg.but1}, {msg.but2}]"
-        )
-        self.get_logger().info(log_str)
-
-def main(args=None):
-    rclpy.init(args=args)
-    node = ArmStateMonitor()
-    try:
-        rclpy.spin(node)
-    except KeyboardInterrupt:
-        pass
-    finally:
-        node.destroy_node()
-        rclpy.shutdown()
-
-if __name__ == '__main__':
-    main()
+ros2 launch alicia_duo_moveit demo.launch.py 
 ```
-
-### 6.3 命令行测试方法
-
-*   **发送关节归零命令:**
-    ```bash
-    ros2 topic pub /arm_joint_command alicia_duo_driver/msg/ArmJointState '{joint1: 0.0, joint2: 0.0, joint3: 0.0, joint4: 0.0, joint5: 0.0, joint6: 0.0, gripper: 0.0}' --once
-    ```
-*   **触发零位校准:**
-    ```bash
-    ros2 topic pub /zero_calibrate std_msgs/msg/Bool "{data: true}" --once
-    ```
-*   **失能:**
-    ```bash
-    ros2 topic pub /demonstration std_msgs/msg/Bool "{data: true}" --once
-    ```
-*   **使能:**
-    ```bash
-    ros2 topic pub /demonstration std_msgs/msg/Bool "{data: false}" --once
-    ```
-*   **监听关节状态:**
-    ```bash
-    ros2 topic echo /arm_joint_state
-    ```
+在`alicia_duo_driver.launch.py`运行的同时，运行上述指令可以通过`moveit`控制机械臂
 
 
 ## 7. 故障排除
