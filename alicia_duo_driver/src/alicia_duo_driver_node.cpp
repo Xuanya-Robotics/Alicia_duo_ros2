@@ -22,8 +22,7 @@ AliciaDuoDriverNode::AliciaDuoDriverNode() : Node("alicia_duo_driver_node"), las
     // Attempt initial connection
     if (communicator_->connect()) {
         RCLCPP_INFO(this->get_logger(), "Initial connection successful. Enabling full torque mode.");
-        // Send the command to disable demonstration mode (enable full torque)
-        // This mimics the successful Python script's logic.
+
         auto frame = generate_simple_frame(CMD_DEMO_CONTROL, 0x01, true);
         communicator_->write_raw_frame(frame);
     } else {
@@ -71,7 +70,6 @@ void AliciaDuoDriverNode::declare_parameters()
 
     communicator_ = std::make_unique<SerialCommunicator>(port, baud_rate, debug_mode_);
 
-    // Initialize mapping tables from Python logic
     joint_to_servo_map_index_ = {0, 0, 1, 1, 2, 2, 3, 4, 5};
     joint_to_servo_map_direction_ = {1.0, 1.0, 1.0, -1.0, 1.0, -1.0, 1.0, 1.0, 1.0};
     servo_to_joint_map_index_ = {0, -1, 1, -1, 2, -1, 3, 4, 5}; // -1 means ignore

@@ -205,27 +205,6 @@ ros2 launch alicia_duo_moveit demo.launch.py
 | 运动范围/方向错误| 角度转换错误、关节映射错误                       | **仔细核对硬件协议文档修正 `rad_to_hardware_value` / `_grip` 函数**、检查 `joint_to_servo_map`             |
 | Checksum 失败   | 校验和算法/范围不匹配、通信干扰                 | **首要任务：根据硬件文档修正校验和计算!** (Python 控制节点 + C++ 驱动节点都需要)、检查硬件连接                 |
 
-### 7.2 诊断方法
-
-*   **启用调试模式:** 在 launch 命令后添加 `py_debug:=true` 以查看 Python 节点的详细日志。C++ 节点的 debug 由其内部参数控制（目前也链接到 `py_debug`）。
-    ```bash
-    ros2 launch alicia_duo_driver serial_driver_launch.py port:=ttyUSB0 py_debug:=true
-    ```
-*   **检查节点状态:**
-    ```bash
-    ros2 node list
-    ros2 node info /serial_driver  # 或其他节点名
-    ```
-*   **监控内部话题:**
-    ```bash
-    ros2 topic echo /read_serial_data  # 查看 C++ 驱动接收并验证通过的帧
-    ros2 topic echo /send_serial_data  # 查看控制节点发送的原始帧
-    ros2 topic echo /servo_states      # 查看分发器转发的舵机状态帧
-    ros2 topic echo /gripper_angle     # 查看分发器转发的夹爪状态数据
-    ros2 topic echo /arm_joint_state   # 查看最终发布的关节状态
-    ```
-*   **使用串口监控工具:** 如 `minicom`, `picocom` (Linux) 或其他工具，直接连接串口，手动发送十六进制命令帧进行测试。
-
 ## 8. 注意事项
 
 1.  **安全第一:** 确保机械臂工作区域安全，无障碍物或人员。
