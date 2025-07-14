@@ -1,7 +1,7 @@
 # This config file is used by ros2_control
 controller_manager:
   ros__parameters:
-    update_rate: 100  # Hz
+    update_rate: 500  # Hz
 
     arm_controller:
       type: joint_trajectory_controller/JointTrajectoryController
@@ -35,3 +35,6 @@ hand_controller:
       - position
     state_interfaces:
       - position
+joint_state_broadcaster:
+  ros__parameters:
+    publish_topic: "/joint_states"

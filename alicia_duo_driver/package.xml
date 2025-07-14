@@ -21,6 +21,7 @@
   <depend>rclcpp_lifecycle</depend>
   <depend>serial_driver</depend>
   <depend>std_msgs</depend>
+  <depend>sensor_msgs</depend>
   <depend>libserial-dev</depend>
 
   <export>
